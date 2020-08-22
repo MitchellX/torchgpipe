@@ -32,6 +32,7 @@ class Experiments:
         batch_size = 80
         chunks = 2
         balance = [241]
+        # because U-net model has totally 241 layers.
 
         model = cast(nn.Sequential, model)
         model = GPipe(model, balance, devices=devices, chunks=chunks)
@@ -149,20 +150,22 @@ def cli(ctx: click.Context,
     model: nn.Module = unet(depth=5, num_convs=5, base_channels=64,
                             input_channels=3, output_channels=1)
 
-    f: Experiment = EXPERIMENTS[experiment]
+    func: Experiment = EXPERIMENTS[experiment]
     try:
-        model, batch_size, _devices = f(model, devices)
+        model, batch_size, _devices = func(model, devices)
     except ValueError as exc:
         # Examples:
         #   ValueError: too few devices to hold given partitions (devices: 1, paritions: 2)
         ctx.fail(str(exc))
 
+    # Stochastic gradient descent
     optimizer = SGD(model.parameters(), lr=0.1)
 
     in_device = _devices[0]
     out_device = _devices[-1]
     torch.cuda.set_device(in_device)
 
+    # construct dataset ==========================================================================
     dataset_size = 10000
 
     input = torch.rand(batch_size, 3, 192, 192, device=in_device)
@@ -215,10 +218,11 @@ def cli(ctx: click.Context,
 
             # 00:01:02 | 1/20 epoch (42%) | 200.000 samples/sec (estimated)
             percent = (i+1) / len(data) * 100
-            throughput = data_trained / (time.time()-tick)
+            throughput = data_trained / (time.time()-tick)  # 这里就是不能暂停程序的原因：时间的计算
             log('%d/%d epoch (%d%%) | %.3f samples/sec (estimated)'
                 '' % (epoch+1, epochs, percent, throughput), clear=True, nl=False)
 
+        # elapsed_time is calculated for the whole epoch, while the upper one is 'samples/sec'-----------------
         torch.cuda.synchronize(in_device)
         tock = time.time()
 
@@ -235,6 +239,7 @@ def cli(ctx: click.Context,
 
     hr()
     for epoch in range(epochs):
+        # parameters for an epoch
         throughput, elapsed_time = run_epoch(epoch)
 
         if epoch < skip_epochs:

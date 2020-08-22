@@ -18,5 +18,6 @@ def _flatten_sequential(module: nn.Sequential) -> Iterator[Tuple[str, nn.Module]
         if isinstance(child, nn.Sequential):
             for sub_name, sub_child in _flatten_sequential(child):
                 yield (f'{name}_{sub_name}', sub_child)
+                # yield is a generator
         else:
             yield (name, child)

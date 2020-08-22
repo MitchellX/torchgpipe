@@ -66,6 +66,8 @@ def stacked_convs(in_channels: int,
 
         layers.append(conv_dropout_norm_relu(hidden_channels, out_channels))
 
+    # 将每一个模块按照他们的顺序送入到nn.Sequential中 ,输入可以是一些列有顺序的模块
+    # 不加*号，会报错 TypeError: list is not a Module subclass
     return nn.Sequential(*layers)
 
 
@@ -146,3 +148,11 @@ def unet(depth: int = 5,
     ]))
     model = flatten_sequential(model)
     return model
+
+
+if __name__ == '__main__':
+    model = unet()
+    print(model)
+
+    print('model.__len__():*****%d layers******' % model.__len__())
+    print(f'model.__len__():*****{model.__len__()} layers******')
